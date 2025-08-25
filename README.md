@@ -31,6 +31,7 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
 ## Flashing the custom firmware   
 
 - Unmount the 4 screws in the battery case and remove the back cover.
+   
    ![](wiki/sgs01-back.jpg)  
    
    ![](wiki/bt3l.jpg)
