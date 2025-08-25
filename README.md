@@ -31,9 +31,10 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
 ## Flashing the custom firmware   
 
 - Unmount the 4 screws in the battery case and remove the back cover.
-  ![](wiki/sgs01-back.jpg)  
-  ![](wiki/bt3l.jpg)  
-
+   ![](wiki/sgs01-back.jpg)  
+   
+   ![](wiki/bt3l.jpg)
+   
 - TELINK BDT    
   [BDT Tool](https://wiki.telink-semi.cn/wiki/IDE-and-Tools/Burning-and-Debugging-Tools-for-all-Series/ ""): Flashing by TELink Buring and debugging tool.   
   Connect:    
@@ -51,7 +52,7 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
     *Sensor SWS - TTL RxTx*   
     *Sensor Reset - TTL Rts*   
 
-- Note: If the sensor firmware was updated by OTA, erase flash sectors 0x00000 - 0x3FFFF. DO NOT erase flash sectors above 0x70000, here is the manufactor preprogrammed area (MAC address and chip calibration data).    
+- Note: If the sensor firmware was updated by OTA, erase flash sectors 0x00000 - 0x3FFFF. DO NOT erase flash sectors above 0x70000, here is the manufactor pre-programmed area (MAC address and chip calibration data).    
 - May read out the original firmware (first 128k) before flashing.
 - Firmware files are located in the subdirectory **/fw**.
 - Flash the xxx.bin at start address 0x00000.    
@@ -59,7 +60,7 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
 ## Getting Started    
 
 - No time? Just flash the module and insert batteries. The sensor will start up in connection mode (LED flashing) and changes after 60 seconds to measure mode - advertising BTHome data.   
-- For configuration and encryption have a look at the manual. [```PDF```](wiki/sgs01-manual.pdf)    
+- For configuration and encryption have a look at the manual. [```PDF```](wiki/SGS01-BTHome-Manual.pdf)    
 
 ## Links    
 
