@@ -31,8 +31,8 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
 ## Flashing the custom firmware   
 
 - Unmount the 4 screws in the battery case and remove the back cover.
-  ![](wiki/sgs01-back.jpg)
-  ![](wiki/bt3l.jpg)
+  ![](wiki/sgs01-back.jpg)  
+  ![](wiki/bt3l.jpg)  
 
 - TELINK BDT    
   [BDT Tool](https://wiki.telink-semi.cn/wiki/IDE-and-Tools/Burning-and-Debugging-Tools-for-all-Series/ ""): Flashing by TELink Buring and debugging tool.   
@@ -42,7 +42,7 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
     *Sensor SWS - BDT SWM*   
   
   Select chip type 8258 to flash.  
-- PVVX (thanks for excellent work on TLSR chip solutions)  
+- PVVX   
   [TlsrComSwireWriter](https://github.com/pvvx/TlsrComSwireWriter ""):
   Flashing by "USB/TTL adapter" and PVVX python script.   
   Connect:   
