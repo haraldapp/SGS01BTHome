@@ -16,7 +16,8 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
 
 - Bluetooth Low Energy
 - Advertising sensor data in BTHome V2 format
-- BTHome data encryption supported
+- BTHome V2 data encryption supported
+- Alternative data formats: BTHome V1, Xiaomi
 - BLE GATT profile to configure and secure the sensor
 - Supporting OTA for firmware updates
 - Extended battery life time

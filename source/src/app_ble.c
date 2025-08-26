@@ -33,6 +33,9 @@
 
 #include "crypt/ccm.h" // encryption
 
+#ifndef APP_LOG_EN
+#define APP_LOG_EN 0
+#endif
 #ifndef APP_BLE_LOG_EN
 #define APP_BLE_LOG_EN 0
 #endif
@@ -56,11 +59,11 @@
 #define		BLE_DEVICE_ADDRESS_TYPE 			BLE_DEVICE_ADDRESS_PUBLIC
 
 // BTHome data mode
-#ifndef BTHOME_ADV_INTERVAL
-#define BTHOME_ADV_INTERVAL 		(ADV_INTERVAL_1S * 6) // 6 sec
+#ifndef SENSORDATA_ADV_INTERVAL
+#define SENSORDATA_ADV_INTERVAL 		(ADV_INTERVAL_1S * 6) // 6 sec
 #endif
-#ifndef BTHOME_CONN_ADV_INTERVAL
-#define BTHOME_CONN_ADV_INTERVAL 	(ADV_INTERVAL_1S * 3) // 3 sec, ADV mode direct
+#ifndef SENSORDATA_CONN_ADV_INTERVAL
+#define SENSORDATA_CONN_ADV_INTERVAL 	(ADV_INTERVAL_1S * 3) // 3 sec, ADV mode direct
 #endif
 
 // States
@@ -72,13 +75,13 @@ _attribute_data_retention_	u8 ble_adv_mode = BLE_ADV_MODE_None;
 _attribute_data_retention_	u8 ble_async_cmd = APP_BLE_CMD_NONE;
 
 //
-// BTHome data
+// Sensor data
 //
-enum { BTH_FLAG_PID=0x01, BTH_FLAG_BAT=0x02,
-	   BTH_FLAG_TEMP=0x04, BTH_FLAG_VOLT=0x08,
-	   BTH_FLAG_MOIST=0x10,
-	   BTH_FLAG_CHANGED=0x080,
-	   BTH_FLAGS_DATAVALID=0x7F,
+enum { DATA_FLAG_PID=0x01, DATA_FLAG_BAT=0x02,
+	   DATA_FLAG_TEMP=0x04, DATA_FLAG_VOLT=0x08,
+	   DATA_FLAG_MOIST=0x10,
+	   DATA_FLAG_CHANGED=0x080,
+	   DATA_FLAGS_DATAVALID=0x7F,
 };
 
 _attribute_data_retention_ struct {
@@ -88,17 +91,17 @@ _attribute_data_retention_ struct {
 	short temperature;		// VT_TEMPERATURE VD_INT digits=2
 	u16   voltage;			// VT_VOLTAGE VD_UINT digits=3
 	u16   moisture;			// VT_MOISTURE VD_UINT digits=2
-} bthome_data = {0, 0, 0, 0, 0, 0};
+} sensor_data = {0, 0, 0, 0, 0, 0};
 
-_attribute_data_retention_ u32 bthome_data_sendcount = 0;
+_attribute_data_retention_ u32 sensor_data_sendcount = 0;
 
-void bthome_increment_packetid()
+void sensordata_increment_packetid()
 {
-	if ((bthome_data.flags&BTH_FLAG_PID)==0)   bthome_data.pid=0;
-	bthome_data.pid++; bthome_data.flags|=(BTH_FLAG_PID|BTH_FLAG_CHANGED);
+	if ((sensor_data.flags&DATA_FLAG_PID)==0)   sensor_data.pid=0;
+	sensor_data.pid++; sensor_data.flags|=(DATA_FLAG_PID|DATA_FLAG_CHANGED);
 }
 
-static int bthome_adjust_digits(int val, char digits, char dest_digits)
+static int sensordata_adjust_digits(int val, char digits, char dest_digits)
 {
 	while (digits > dest_digits && val != 0) {
 		val /= 10; digits--;
@@ -111,48 +114,53 @@ static int bthome_adjust_digits(int val, char digits, char dest_digits)
 	return val;
 }
 
-int app_ble_set_bthome_data(u8 vt, int val, char digits)
+int app_ble_set_sensor_data(u8 vt, int val, char digits)
 {
 	if (vt==VT_BATTERY_PERCENT) {
-		val=bthome_adjust_digits(val, digits, 0);
+		val=sensordata_adjust_digits(val, digits, 0);
 		if (val<0 || val>100)    return -1;
-		if ((bthome_data.flags&BTH_FLAG_BAT)!=0 && val==bthome_data.batterypercent)   return 0;
+		if ((sensor_data.flags&DATA_FLAG_BAT)!=0 && val==sensor_data.batterypercent)   return 0;
 		DEBUGFMT(APP_BLE_LOG_EN, "[BLE] Data battery %u %%", val);
-		bthome_data.batterypercent=(u8)val;
-		bthome_data.flags|=BTH_FLAG_BAT|BTH_FLAG_CHANGED;
+		sensor_data.batterypercent=(u8)val;
+		sensor_data.flags|=DATA_FLAG_BAT|DATA_FLAG_CHANGED;
 		#if (APP_BLE_ATT)
 		app_ble_att_set_battery_data((u8)val); // GATT value and push notification
 		#endif
 		return 1;
 	}
 	if (vt==VT_TEMPERATURE) {
-		val=bthome_adjust_digits(val, digits, 2);
+		val=sensordata_adjust_digits(val, digits, 2);
 		if (val<INT16_MIN || val>INT16_MAX)    return -1;
-		if ((bthome_data.flags&BTH_FLAG_TEMP)!=0 && val==bthome_data.temperature)   return 0;
+		if ((sensor_data.flags&DATA_FLAG_TEMP)!=0 && val==sensor_data.temperature)   return 0;
 		DEBUGFMT(APP_BLE_LOG_EN, "[BLE] Data temperature %d.%02u C", val/100, abs(val)%100);
-		bthome_data.temperature=(short)val;
-		bthome_data.flags|=BTH_FLAG_TEMP|BTH_FLAG_CHANGED;
+		sensor_data.temperature=(short)val;
+		sensor_data.flags|=DATA_FLAG_TEMP|DATA_FLAG_CHANGED;
 		return 1;
 	}
 	if (vt==VT_VOLTAGE) {
-		val=bthome_adjust_digits(val, digits, 3);
+		val=sensordata_adjust_digits(val, digits, 3);
 		if (val<0 || val>UINT16_MAX)    return -1;
-		if ((bthome_data.flags&BTH_FLAG_VOLT)!=0 && val==bthome_data.voltage)   return 0;
+		if ((sensor_data.flags&DATA_FLAG_VOLT)!=0 && val==sensor_data.voltage)   return 0;
 		DEBUGFMT(APP_BLE_LOG_EN, "[BLE] Data voltage %d mV", val);
-		bthome_data.voltage=(u16)val;
-		bthome_data.flags|=BTH_FLAG_VOLT|BTH_FLAG_CHANGED;
+		sensor_data.voltage=(u16)val;
+		sensor_data.flags|=DATA_FLAG_VOLT|DATA_FLAG_CHANGED;
 		return 1;
 	}
 	if (vt==VT_MOISTURE) {
-		val=bthome_adjust_digits(val, digits, 2);
+		val=sensordata_adjust_digits(val, digits, 2);
 		if (val<0 || val>100*100)    return -1;
-		if ((bthome_data.flags&BTH_FLAG_MOIST)!=0 && val==bthome_data.moisture)   return 0;
+		if ((sensor_data.flags&DATA_FLAG_MOIST)!=0 && val==sensor_data.moisture)   return 0;
 		DEBUGFMT(APP_BLE_LOG_EN, "[BLE] Data moisture %d.%02u %%", val/100, abs(val)%100);
-		bthome_data.moisture=(u16)val;
-		bthome_data.flags|=BTH_FLAG_MOIST|BTH_FLAG_CHANGED;
+		sensor_data.moisture=(u16)val;
+		sensor_data.flags|=DATA_FLAG_MOIST|DATA_FLAG_CHANGED;
 		return 1;
 	}
 	return -2;
+}
+
+void app_ble_set_sensor_data_changed(void)
+{
+	sensor_data.flags|=DATA_FLAG_CHANGED;
 }
 
 //
@@ -162,10 +170,19 @@ int app_ble_set_bthome_data(u8 vt, int val, char digits)
 
 #define GAP_APPEARANCE_GENERIC_SENSOR 0x0540 // 1344, Generic Sensor
 
+#define BTHOME_ADV_UUID16_V1		 0x181C // 16-bit UUID Service Data BTHome V1 (depreciated)
+
 #define BTHOME_ADV_UUID16 			 0xFCD2 // 16-bit UUID Service Data BTHome V2
 #define BTHOME_ADV_FLAG_ENCRYPTED	 0x01
 #define BTHOME_ADV_FLAG_TRIGGERBASED 0x04
 #define BTHOME_ADV_VERSION 			 2
+
+#define XIAOMI_ADV_UUID16 			 0xFE95 // 16-bit UUID Service Data XIAOMI
+#define XIAOMI_ADV_FLAG_ENCRYPTED	 0x0008
+#define XIAOMI_ADV_FLAG_HASMAC		 0x0010
+#define XIAOMI_ADV_FLAG_HASDATA		 0x0040
+#define XIAOMI_ADV_FLAG_AUTHMODEMASK 0x0C00
+#define XIAOMI_ADV_FLAG_VERSIONMASK	 0xF000
 
 _attribute_data_retention_ u8 ble_scanRsp [] = {
 	 13, DT_COMPLETE_LOCAL_NAME,			'U', 'N', 'K', 'W', 'N', '-', '?', '?', '?', '?', '?', '?'
@@ -185,8 +202,8 @@ const u8 ble_advDataError[] = {
 	     VT_TEXT, 5, 'E', 'r', 'r', 'o', 'r'
 };
 
-_attribute_data_retention_ u8 ble_advDataBTHomeLen = 0;
-_attribute_data_retention_ u8 ble_advDataBTHome[31]; // max.
+_attribute_data_retention_ u8 ble_advSensorDataLen = 0;
+_attribute_data_retention_ u8 ble_advSensorData[31]; // max.
 
 static inline u8 hex_digit(u8 h)
 {
@@ -228,6 +245,27 @@ _attribute_optimize_size_ void app_ble_init_device_name(const char* devname)
 	ble_setup_adv_localname(devname, 0, ble_scanRsp, sizeof(ble_scanRsp));
 }
 
+//
+// Basic ADV data
+//
+
+_attribute_optimize_size_ static int ble_build_adv_basic(void)
+{
+	if (ble_advSensorDataLen==3)
+		return 0; // no change
+	// adv flags
+	u8 u=0;
+	ble_advSensorData[u++]=2; // len
+	ble_advSensorData[u++]=DT_FLAGS; // type flags
+	ble_advSensorData[u++]=BLE_ADV_FLAGS; // adv flags
+	ble_advSensorDataLen=u;
+	return 1;
+}
+
+//
+// BTHome ADV data
+//
+
 typedef struct _attribute_packed_ _bthome_nonce_t { // for encryption
     u8  mac[6];
     u16 uuid16;
@@ -235,95 +273,240 @@ typedef struct _attribute_packed_ _bthome_nonce_t { // for encryption
 	u32 cnt32;
 } bthome_nonce_t;
 
-_attribute_optimize_size_ static int ble_build_adv_bthome()
-{
-	if (ble_advDataBTHomeLen>0 && (bthome_data.flags&BTH_FLAG_CHANGED)==0)
+#define BTHOME_V1_DATA_UINT		0x00 // data flag bits 5-7
+#define BTHOME_V1_DATA_INT		0x20
+#define BTHOME_V1_DATA_FLOAT	0x40
+
+_attribute_optimize_size_ static int ble_build_adv_bthome_v1(void)
+{   // BTHome V1 format is depreciated
+	if (ble_advSensorDataLen>0 && (sensor_data.flags&DATA_FLAG_CHANGED)==0)
 		return 0; // no change
-	u8 u=0;
 	// adv flags
-	ble_advDataBTHome[u++]=2; // len
-	ble_advDataBTHome[u++]=DT_FLAGS; // type flags
-	ble_advDataBTHome[u++]=BLE_ADV_FLAGS; // adv flags
-	ble_advDataBTHomeLen=u;
-	if ((bthome_data.flags&BTH_FLAGS_DATAVALID)==0)
+	ble_advSensorDataLen=0; ble_build_adv_basic();
+	if ((sensor_data.flags&DATA_FLAGS_DATAVALID)==0)
+		return 1; // no bthome data
+	// adv bthome v1 data
+	u8 u=ble_advSensorDataLen;
+	u8 len_ofs=u; ble_advSensorData[u++]=3; // len: AD type + UUID16
+	ble_advSensorData[u++]=DT_SERVICEDATA_UUID16; // =0x16: AD type "Service Data 16-bit UUID"
+	ble_advSensorData[u++]=(u8)BTHOME_ADV_UUID16_V1; // =0x181C: BTHome V1
+	ble_advSensorData[u++]=(u8)(BTHOME_ADV_UUID16_V1>>8);
+	u8 data_ofs = u;
+	if (sensor_data.flags&DATA_FLAG_PID) {
+		ble_advSensorData[u++]=BTHOME_V1_DATA_UINT | 1; // datatype + valuesize
+		ble_advSensorData[u++]=VT_PID; // 0x00 value type
+		ble_advSensorData[u++]=sensor_data.pid; // value
+	}
+	if (sensor_data.flags&DATA_FLAG_BAT) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=BTHOME_V1_DATA_UINT | 1;
+		ble_advSensorData[u++]=VT_BATTERY_PERCENT; // 0x01
+		ble_advSensorData[u++]=sensor_data.batterypercent;
+	}
+	if (sensor_data.flags&DATA_FLAG_TEMP) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=BTHOME_V1_DATA_INT | 2;
+		ble_advSensorData[u++]=VT_TEMPERATURE; // 0x02
+		ble_advSensorData[u++]=(u8)(sensor_data.temperature&0xFF);
+		ble_advSensorData[u++]=(u8)(sensor_data.temperature>>8);
+	}
+	if (sensor_data.flags&DATA_FLAG_VOLT) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=BTHOME_V1_DATA_UINT | 2;
+		ble_advSensorData[u++]=VT_VOLTAGE; // 0x0C
+		ble_advSensorData[u++]=(u8)(sensor_data.voltage&0xFF);
+		ble_advSensorData[u++]=(u8)(sensor_data.voltage>>8);
+	}
+	if (sensor_data.flags&DATA_FLAG_MOIST) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=BTHOME_V1_DATA_UINT | 2;
+		ble_advSensorData[u++]=VT_MOISTURE; // 0x14
+		ble_advSensorData[u++]=(u8)(sensor_data.moisture&0xFF);
+		ble_advSensorData[u++]=(u8)(sensor_data.moisture>>8);
+	}
+	// encryption: not supported
+	u8 data_len = u - data_ofs;
+	// att data: none (only bthome v2)
+	#if (APP_BLE_ATT)
+	app_ble_att_set_bthome_data(0, 0);
+	#endif
+	// add data length
+	ble_advSensorData[len_ofs]+=data_len; // add adata length
+	ble_advSensorDataLen=u;
+	sensor_data.flags&=(~DATA_FLAG_CHANGED); // reset changed flag
+	return 1;
+}
+
+_attribute_optimize_size_ static int ble_build_adv_bthome_v2(void)
+{
+	if (ble_advSensorDataLen>0 && (sensor_data.flags&DATA_FLAG_CHANGED)==0)
+		return 0; // no change
+	// adv flags
+	ble_advSensorDataLen=0; ble_build_adv_basic();
+	if ((sensor_data.flags&DATA_FLAGS_DATAVALID)==0)
 		return 1; // no bthome data
 	// adv bthome data
 	const u8 *encrypt_key=app_config_get_bthome_key();
 	u8 bth_infoflags=(BTHOME_ADV_VERSION<<5); // info flags: bit0: encrypted, bit 5..7: BTHome protocol version
 	if (encrypt_key)   bth_infoflags |= BTHOME_ADV_FLAG_ENCRYPTED;
-	bthome_increment_packetid();
-	u8 len_ofs=u; ble_advDataBTHome[u++]=4; // len: AD type + UUID16 + BTHome flags
-	ble_advDataBTHome[u++]=DT_SERVICEDATA_UUID16; // =0x16: AD type "Service Data 16-bit UUID"
-	ble_advDataBTHome[u++]=(u8)BTHOME_ADV_UUID16; // =0xFCD2: BTHome V2
-	ble_advDataBTHome[u++]=(u8)(BTHOME_ADV_UUID16>>8);
-	ble_advDataBTHome[u++]=bth_infoflags; // BTHome info
+	sensordata_increment_packetid();
+	u8 u=ble_advSensorDataLen;
+	u8 len_ofs=u; ble_advSensorData[u++]=4; // len: AD type + UUID16 + BTHome flags
+	ble_advSensorData[u++]=DT_SERVICEDATA_UUID16; // =0x16: AD type "Service Data 16-bit UUID"
+	ble_advSensorData[u++]=(u8)BTHOME_ADV_UUID16; // =0xFCD2: BTHome V2
+	ble_advSensorData[u++]=(u8)(BTHOME_ADV_UUID16>>8);
+	ble_advSensorData[u++]=bth_infoflags; // BTHome info
 	u8 data_ofs = u;
-	if (bthome_data.flags&BTH_FLAG_PID) {
-		ble_advDataBTHome[u++]=VT_PID; // 0x00
-		ble_advDataBTHome[u++]=bthome_data.pid;
+	if (sensor_data.flags&DATA_FLAG_PID) {
+		ble_advSensorData[u++]=VT_PID; // 0x00
+		ble_advSensorData[u++]=sensor_data.pid;
 	}
-	if (bthome_data.flags&BTH_FLAG_BAT) {
-		if (u >= sizeof(ble_advDataBTHome))   return -1;
-		ble_advDataBTHome[u++]=VT_BATTERY_PERCENT; // 0x01
-		ble_advDataBTHome[u++]=bthome_data.batterypercent;
+	if (sensor_data.flags&DATA_FLAG_BAT) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=VT_BATTERY_PERCENT; // 0x01
+		ble_advSensorData[u++]=sensor_data.batterypercent;
 	}
-	if (bthome_data.flags&BTH_FLAG_TEMP) {
-		if (u >= sizeof(ble_advDataBTHome))   return -1;
-		ble_advDataBTHome[u++]=VT_TEMPERATURE; // 0x02
-		ble_advDataBTHome[u++]=(u8)(bthome_data.temperature&0xFF);
-		ble_advDataBTHome[u++]=(u8)(bthome_data.temperature>>8);
+	if (sensor_data.flags&DATA_FLAG_TEMP) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=VT_TEMPERATURE; // 0x02
+		ble_advSensorData[u++]=(u8)(sensor_data.temperature&0xFF);
+		ble_advSensorData[u++]=(u8)(sensor_data.temperature>>8);
 	}
-	if (bthome_data.flags&BTH_FLAG_VOLT) {
-		if (u >= sizeof(ble_advDataBTHome))   return -1;
-		ble_advDataBTHome[u++]=VT_VOLTAGE; // 0x0C
-		ble_advDataBTHome[u++]=(u8)(bthome_data.voltage&0xFF);
-		ble_advDataBTHome[u++]=(u8)(bthome_data.voltage>>8);
+	if (sensor_data.flags&DATA_FLAG_VOLT) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=VT_VOLTAGE; // 0x0C
+		ble_advSensorData[u++]=(u8)(sensor_data.voltage&0xFF);
+		ble_advSensorData[u++]=(u8)(sensor_data.voltage>>8);
 	}
-	if (bthome_data.flags&BTH_FLAG_MOIST) {
-		if (u >= sizeof(ble_advDataBTHome))   return -1;
-		ble_advDataBTHome[u++]=VT_MOISTURE; // 0x14
-		ble_advDataBTHome[u++]=(u8)(bthome_data.moisture&0xFF);
-		ble_advDataBTHome[u++]=(u8)(bthome_data.moisture>>8);
+	if (sensor_data.flags&DATA_FLAG_MOIST) {
+		if (u >= sizeof(ble_advSensorData))   return -1;
+		ble_advSensorData[u++]=VT_MOISTURE; // 0x14
+		ble_advSensorData[u++]=(u8)(sensor_data.moisture&0xFF);
+		ble_advSensorData[u++]=(u8)(sensor_data.moisture>>8);
 	}
 	u8 data_len = u - data_ofs;
 	// att data (not encrypted)
 	#if (APP_BLE_ATT)
-	app_ble_att_set_bthome_data(ble_advDataBTHome+data_ofs, data_len);
+	app_ble_att_set_bthome_data(ble_advSensorData+data_ofs, data_len);
 	#endif
 	// encrypt
 	if (encrypt_key) {
 		u8 m, buf[20]; bthome_nonce_t nonce; u32 tag;
 		// copy data
 		if (data_len > sizeof(buf))   return -1; // length error
-		if (u+4+4 >= sizeof(ble_advDataBTHome))   return -1; // advertising length error (encryption adds mic+tag)
-		memcpy(buf, &ble_advDataBTHome[data_ofs], data_len);
+		if (u+4+4 >= sizeof(ble_advSensorData))   return -1; // advertising length error (encryption adds mic+tag)
+		memcpy(buf, &ble_advSensorData[data_ofs], data_len);
 		// build nonce (iv)
 		for (m=0; m<6; m++)   nonce.mac[m]=ble_mac_public[5-m];
-		nonce.uuid16=BTHOME_ADV_UUID16; nonce.flags=bth_infoflags; nonce.cnt32=bthome_data_sendcount;
+		nonce.uuid16=BTHOME_ADV_UUID16; nonce.flags=bth_infoflags; nonce.cnt32=sensor_data_sendcount;
 		// encrypt
 		aes_ccm_encrypt_and_tag( encrypt_key, // key
            (u8 *)&nonce, sizeof(nonce), // iv
 		   NULL, 0, // opt.: add data
 		   buf, data_len, // in
-		   &ble_advDataBTHome[data_ofs], // data out
+		   &ble_advSensorData[data_ofs], // data out
 		   (u8 *)&tag, 4); // tag out
 		// append counter + tag (mic)
-		ble_advDataBTHome[u++]=(u8)(nonce.cnt32&0xFF);
-		ble_advDataBTHome[u++]=(u8)(nonce.cnt32>>8);
-		ble_advDataBTHome[u++]=(u8)(nonce.cnt32>>16);
-		ble_advDataBTHome[u++]=(u8)(nonce.cnt32>>24);
-		ble_advDataBTHome[u++]=(u8)(tag&0xFF);
-		ble_advDataBTHome[u++]=(u8)(tag>>8);
-		ble_advDataBTHome[u++]=(u8)(tag>>16);
-		ble_advDataBTHome[u++]=(u8)(tag>>24);
+		ble_advSensorData[u++]=(u8)(nonce.cnt32&0xFF);
+		ble_advSensorData[u++]=(u8)(nonce.cnt32>>8);
+		ble_advSensorData[u++]=(u8)(nonce.cnt32>>16);
+		ble_advSensorData[u++]=(u8)(nonce.cnt32>>24);
+		ble_advSensorData[u++]=(u8)(tag&0xFF);
+		ble_advSensorData[u++]=(u8)(tag>>8);
+		ble_advSensorData[u++]=(u8)(tag>>16);
+		ble_advSensorData[u++]=(u8)(tag>>24);
 		data_len = u - data_ofs;
 	}
-	ble_advDataBTHome[len_ofs]+=data_len; // add adata length
-	ble_advDataBTHomeLen=u;
-	bthome_data.flags&=(~BTH_FLAG_CHANGED); // reset changed flag
+	// add data length
+	ble_advSensorData[len_ofs]+=data_len;
+	ble_advSensorDataLen=u;
+	sensor_data.flags&=(~DATA_FLAG_CHANGED); // reset changed flag
 	return 1;
 }
 
+//
+// XIAOMI ADV data
+//
+
+#ifndef XIAOMI_DEVICE_ID
+#define XIAOMI_DEVICE_ID 0x0098 // MiFlora HHCCJCY01
+#endif
+
+#define XIAOMI_VALTYPE_TEMP  0x1004 // len=2 0.1C
+#define XIAOMI_VALTYPE_MOIST 0x1008 // len=1 1%
+#define XIAOMI_VALTYPE_BAT   0x100A // len=1 1%
+
+#define DATA_FLAGS_XIAOMI_DATAVALID (DATA_FLAG_BAT | DATA_FLAG_TEMP | DATA_FLAG_MOIST)
+
+_attribute_optimize_size_ static int ble_build_adv_xiaomi(void)
+{
+	if (ble_advSensorDataLen>0 && (sensor_data.flags&DATA_FLAG_CHANGED)==0)
+		return 0; // no change
+	// adv flags
+	ble_advSensorDataLen=0; ble_build_adv_basic();
+	sensordata_increment_packetid();
+	// adv xiaomi data (encryption not supported in current version)
+	u8 u=ble_advSensorDataLen;
+	u8 len_ofs=u; ble_advSensorData[u++]=3+5; // len: AD type + UUID16 + xiaomi_header
+	ble_advSensorData[u++]=DT_SERVICEDATA_UUID16; // =0x16: AD type "Service Data 16-bit UUID"
+	ble_advSensorData[u++]=(u8)XIAOMI_ADV_UUID16; // =0xFE95: Xiaomi
+	ble_advSensorData[u++]=(u8)(XIAOMI_ADV_UUID16>>8);
+	// xiaomi header: flags devid msgcnt
+	u16 xiaomi_flags=0, xiaomi_devid=XIAOMI_DEVICE_ID;
+	if (sensor_data.flags & DATA_FLAGS_XIAOMI_DATAVALID)   xiaomi_flags |= XIAOMI_ADV_FLAG_HASDATA;
+	ble_advSensorData[u++]=(u8)xiaomi_flags;
+	ble_advSensorData[u++]=(u8)(xiaomi_flags>>8);
+	ble_advSensorData[u++]=(u8)xiaomi_devid;
+	ble_advSensorData[u++]=(u8)(xiaomi_devid>>8);
+	ble_advSensorData[u++]=(u8)(sensor_data.pid);
+	// xiaomi data: valtype vallen data
+	u8 data_ofs = u;
+	if (sensor_data.flags&DATA_FLAG_TEMP) {
+		if (u >= sizeof(ble_advSensorData)-5)   return -1;
+		ble_advSensorData[u++]=(u8)(XIAOMI_VALTYPE_TEMP); // valtype 0x1004
+		ble_advSensorData[u++]=(u8)(XIAOMI_VALTYPE_TEMP>>8);
+		ble_advSensorData[u++]=2; // len
+		ble_advSensorData[u++]=(u8)((sensor_data.temperature/10)&0xFF);
+		ble_advSensorData[u++]=(u8)((sensor_data.temperature/10)>>8);
+	}
+	if (sensor_data.flags&DATA_FLAG_MOIST) {
+		if (u >= sizeof(ble_advSensorData)-4)   return -1;
+		ble_advSensorData[u++]=(u8)(XIAOMI_VALTYPE_MOIST); // valtype 0x100A
+		ble_advSensorData[u++]=(u8)(XIAOMI_VALTYPE_MOIST>>8);
+		ble_advSensorData[u++]=1; // len
+		ble_advSensorData[u++]=(u8)(sensor_data.moisture/100);
+	}
+	if (sensor_data.flags&DATA_FLAG_BAT) {
+		if (u >= sizeof(ble_advSensorData)-4)   return -1;
+		ble_advSensorData[u++]=(u8)(XIAOMI_VALTYPE_BAT); // valtype 0x100A
+		ble_advSensorData[u++]=(u8)(XIAOMI_VALTYPE_BAT>>8);
+		ble_advSensorData[u++]=1; // len
+		ble_advSensorData[u++]=(u8)(sensor_data.batterypercent);
+	}
+	u8 data_len = u - data_ofs;
+	// att data
+	#if (APP_BLE_ATT)
+	app_ble_att_set_xiaomi_data(ble_advSensorData+data_ofs, data_len);
+	#endif
+	ble_advSensorData[len_ofs]+=data_len; // add adata length
+	ble_advSensorDataLen=u;
+	sensor_data.flags&=(~DATA_FLAG_CHANGED); // reset changed flag
+	return 1;
+}
+
+static int ble_build_adv_sensordata(void)
+{
+	int ret=0; u8 datafmt=app_config_get_dataformat();
+	if (datafmt == DATAFORMAT_DEFAULT || datafmt == DATAFORMAT_BTHOME_V2)
+		ret=ble_build_adv_bthome_v2();
+	else if (datafmt == DATAFORMAT_BTHOME_V1)
+		ret=ble_build_adv_bthome_v1();
+	else if (datafmt == DATAFORMAT_XIAOMI)
+		ret=ble_build_adv_xiaomi();
+	else
+		ret=ble_build_adv_basic();
+	return ret;
+}
 
 //
 // BLE stack states / callbacks
@@ -357,6 +540,7 @@ _attribute_optimize_size_ void app_ble_set_powerlevel(signed char level_dbm)
 	}
 	ble_rf_power_level=rf;
 	rf_set_power_level_index(ble_rf_power_level); // RF driver
+	DEBUGFMT(APP_BLE_LOG_EN, "[BLE] RF PowerLevel index %02X", ble_rf_power_level);
 }
 
 _attribute_optimize_size_ void ble_set_conn_state(u8 state)
@@ -379,8 +563,8 @@ _attribute_optimize_size_ void ble_set_conn_state(u8 state)
 _attribute_ram_code_ int ble_advertise_prepare_handler(rf_packet_adv_t * p)
 {
 	(void) p;
-	if (ble_adv_mode == BLE_ADV_MODE_BTHome)
-		bthome_data_sendcount++;
+	if (ble_adv_mode == BLE_ADV_MODE_SensorData)
+		sensor_data_sendcount++;
 	return 1; // = 1 ready to send ADV packet, = 0 not send ADV
 }
 
@@ -398,9 +582,9 @@ void ble_task_connect (u8 e, u8 *p, int n)
 	(void)e;(void)p;(void)n;
 	#if (APP_BLE_EVENT_LOG_EN)
 	tlk_contr_evt_connect_t *pConnEvt = (tlk_contr_evt_connect_t *)p;
-	DEBUGHEXBUF(APP_BLE_EVENT_LOG_EN, "[BLE] evt connect, intA & advA: %s", pConnEvt->initA, 12);
+	DEBUGHEXBUF(APP_BLE_EVENT_LOG_EN, "[BLE] evt connect, intA & advA: %s", pConnEvt->initA, sizeof(tlk_contr_evt_connect_t));
 	#endif
-	bls_l2cap_requestConnParamUpdate (CONN_INTERVAL_10MS, CONN_INTERVAL_10MS, 99, CONN_TIMEOUT_4S); // 1 sec
+	bls_l2cap_requestConnParamUpdate(CONN_INTERVAL_10MS, CONN_INTERVAL_15MS, 99, CONN_TIMEOUT_4S); // 1 sec (must: max_interval>min_interval)
 	ble_connection_timeout = app_sec_time(); if (ble_connection_timeout<1)   ble_connection_timeout=1;
 	ble_set_conn_state(DEV_CONN_STATE_CONNECTED);
 }
@@ -431,14 +615,14 @@ void ble_task_terminate(u8 e, u8 *p, int n) //*p is terminate reason
 }
 
 // callback function of LinkLayer Event BLT_EV_FLAG_SUSPEND_EXIT
-_attribute_optimize_size_ void ble_task_suspend_exit(u8 e, u8 *p, int n)
+void ble_task_suspend_exit(u8 e, u8 *p, int n)
 {
 	(void)e;(void)p;(void)n;
 	rf_set_power_level_index(ble_rf_power_level); // restore rf power level
 }
 
 // callback function (LinkLayer Event BLT_EV_FLAG_DATA_LENGTH_EXCHANGE)
-_attribute_optimize_size_ void ble_task_dle_exchange(u8 e, u8 *p, int n)
+void ble_task_dle_exchange(u8 e, u8 *p, int n)
 {
 	#if (APP_BLE_EVENT_LOG_EN)
 	tlk_contr_evt_dataLenExg_t* pEvt = (tlk_contr_evt_dataLenExg_t*)p;
@@ -446,7 +630,7 @@ _attribute_optimize_size_ void ble_task_dle_exchange(u8 e, u8 *p, int n)
 	#endif
 }
 // callback function (Host Events)
-_attribute_optimize_size_ int ble_host_event_callback(u32 h, u8 *para, int n)
+int ble_host_event_callback(u32 h, u8 *para, int n)
 {
 	u8 event = (h & 0xFF);
 	switch(event)
@@ -455,6 +639,7 @@ _attribute_optimize_size_ int ble_host_event_callback(u32 h, u8 *para, int n)
 		{
 			gap_smp_pairingBeginEvt_t *pEvt = (gap_smp_pairingBeginEvt_t *)para;
 			DEBUGFMT(APP_SMP_LOG_EN, "[BLE] SMP paring begin: conn %u, secure %u, tk-method %u", pEvt->connHandle, pEvt->secure_conn, pEvt->tk_method);
+			//DEBUGHEXBUF(APP_SMP_LOG_EN, "[BLE] SMP paring begin: %s", pEvt, sizeof(gap_smp_pairingBeginEvt_t));
 			u32 pincode=app_config_get_pincode();
 			blc_smp_manualSetPinCode_for_debug(pEvt->connHandle,pincode); // using fix pincode
 		} break;
@@ -471,7 +656,7 @@ _attribute_optimize_size_ int ble_host_event_callback(u32 h, u8 *para, int n)
 					ok=app_config_create_key(0);
 				if (ok)
 					app_ble_att_setup_config();
-				bthome_increment_packetid(); // rebuild BTHome adv data
+				sensordata_increment_packetid(); // rebuild BTHome adv data
 				#endif
 			}
 		} break;
@@ -595,34 +780,34 @@ _attribute_optimize_size_ void app_ble_setup_adv(u8 adv_mode)
 		bls_ll_setAdvDuration(0, 0); // disable (adv duration is handled by app.c)
 		adv_enable=BLC_ADV_ENABLE;
 	}
-	if (adv_mode == BLE_ADV_MODE_BTHome)
+	if (adv_mode == BLE_ADV_MODE_SensorData)
 	{  // ADV with BTHome data
 		u8 devmode=app_config_get_mode();
 		enum {DEVMODE_DEFAULT=0, DEVMODE_MEASURE_NOCONN=0, DEVMODE_MEASURE_CONN, DEVMODE_LAST};
 		if (bond_number > 0 && devmode == DEVMODE_MEASURE_CONN)
 		{   // note: direct adv
-			DEBUGSTR(APP_BLE_LOG_EN, "[BLE] Start ADVind BTHome");
+			DEBUGSTR(APP_BLE_LOG_EN, "[BLE] Start ADVind SensorData");
 			adv_param_ret = bls_ll_setAdvParam(
-					BTHOME_CONN_ADV_INTERVAL, BTHOME_CONN_ADV_INTERVAL+(BTHOME_ADV_INTERVAL/10),
+					SENSORDATA_CONN_ADV_INTERVAL, SENSORDATA_CONN_ADV_INTERVAL+(SENSORDATA_ADV_INTERVAL/10),
 					ADV_TYPE_CONNECTABLE_UNDIRECTED, ble_own_address_type,
 					bondInfo.peer_addr_type,  bondInfo.peer_addr,
 					BLT_ENABLE_ADV_ALL,	ADV_FP_NONE);
 		}
 		else // DEVMODE_MEASURE_NOCONN
 		{
-			DEBUGSTR(APP_BLE_LOG_EN, "[BLE] Start ADVnoconn BTHome");
+			DEBUGSTR(APP_BLE_LOG_EN, "[BLE] Start ADVnoconn SensorData");
 			adv_param_ret = bls_ll_setAdvParam(
-					BTHOME_ADV_INTERVAL, BTHOME_ADV_INTERVAL+(BTHOME_ADV_INTERVAL/10),
+					SENSORDATA_ADV_INTERVAL, SENSORDATA_ADV_INTERVAL+(SENSORDATA_ADV_INTERVAL/10),
 					ADV_TYPE_NONCONNECTABLE_UNDIRECTED,
 					ble_own_address_type,
 					0,  NULL, BLT_ENABLE_ADV_ALL, ADV_FP_NONE);
 		}
-		ble_build_adv_bthome();
+		ble_build_adv_sensordata();
 		bls_ll_setScanRspData((u8 *)ble_scanRsp,sizeof(ble_scanRsp));
-		bls_ll_setAdvData(ble_advDataBTHome, ble_advDataBTHomeLen);
+		bls_ll_setAdvData(ble_advSensorData, ble_advSensorDataLen);
 		bls_ll_setAdvDuration(0, 0); // disable adv duration
 		bls_set_advertise_prepare(ble_advertise_prepare_handler); // ll_adv.h
-		bthome_data_sendcount = 0;
+		sensor_data_sendcount = 0;
 		adv_enable=BLC_ADV_ENABLE;
 	}
 	if (adv_param_ret!=BLE_SUCCESS)
@@ -696,6 +881,7 @@ _attribute_optimize_size_ void app_ble_init_normal(void)
 	blc_ll_initAdvertising_module(ble_mac_public);	// legacy advertising module: mandatory for BLE slave
 	blc_ll_initConnection_module();					// connection module: mandatory for BLE slave/master
 	blc_ll_initSlaveRole_module();					// slave module: mandatory for BLE slave,
+	// blc_debug_enableStackLog(0);
 	//
 	// Host Initialization
 	//
@@ -708,7 +894,9 @@ _attribute_optimize_size_ void app_ble_init_normal(void)
 	#endif
 	blc_att_setRxMtuSize(MTU_SIZE_SETTING); // set MTU size, default MTU is 23 if not call this API
 	// SMP initialization (may involve flash write/erase - check abttery before)
-	bls_smp_configPairingSecurityInfoStorageAddr(app_flash_get_smp_storage_sector()); // must before init
+	u32 smp_flash_sector=app_flash_get_smp_storage_sector();
+	DEBUGFMT(APP_BLE_LOG_EN, "[BLE] SMP flash sector %x", smp_flash_sector);
+	bls_smp_configPairingSecurityInfoStorageAddr(smp_flash_sector); // must before init
 	blc_smp_param_setBondingDeviceMaxNumber(1);
 	app_ble_setup_smp_security(); // init smp
 	// Host events (GAP/SMP/GATT/ATT): register callback
@@ -718,9 +906,7 @@ _attribute_optimize_size_ void app_ble_init_normal(void)
 	// OTA server
 	//
 	#if (BLE_OTA_SERVER_ENABLE)
-	#if (APP_OTA_LOG_EN)
 	// blc_debug_addStackLog(STK_LOG_OTA_FLOW);
-	#endif
 	blc_ota_initOtaServer_module();
 	// blc_ota_setOtaProcessTimeout(30);   //OTA process timeout:  30 seconds
 	// blc_ota_setOtaDataPacketTimeout(4);	//OTA data packet timeout:  4 seconds
@@ -750,12 +936,12 @@ _attribute_ram_code_ void app_ble_init_deepRetn(void)
 u8 app_ble_loop(void)
 {
 	// check for BTHome value changes and update adv data
-	if (ble_adv_mode == BLE_ADV_MODE_BTHome)
+	if (ble_adv_mode == BLE_ADV_MODE_SensorData)
 	{
-		int ret=ble_build_adv_bthome();
+		int ret=ble_build_adv_sensordata();
 		if (ret > 0)
 		{   // data changed
-			bls_ll_setAdvData(ble_advDataBTHome, ble_advDataBTHomeLen);
+			bls_ll_setAdvData(ble_advSensorData, ble_advSensorDataLen);
 			bls_ll_setAdvEnable(BLC_ADV_ENABLE);
 		}
 		if (ret < 0)
@@ -827,7 +1013,7 @@ void app_ble_delete_bond(void)
 	bls_ll_terminateConnection(0x13); // 0x13: remote user terminated connection
 	bls_smp_eraseAllPairingInformation();
 	app_ble_setup_smp_security();
-	bthome_increment_packetid(); // rebuild BTHome data
+	sensordata_increment_packetid(); // rebuild BTHome data
 	#if (APP_LOG_EN)
 	u8 bond_number = blc_smp_param_getCurrentBondingDeviceNumber();
 	DEBUGFMT(APP_LOG_EN, "|APP] Delete bond %u",bond_number);

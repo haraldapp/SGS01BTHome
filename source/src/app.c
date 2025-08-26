@@ -38,6 +38,9 @@
 #ifndef APP_DPDATA_LOG_EN
 #define APP_DPDATA_LOG_EN 0
 #endif
+#ifndef APP_SECTIMER_DEBUG_EN
+#define APP_SECTIMER_DEBUG_EN 0
+#endif
 
 
 // BLE stack RX/TX FIFO (must)
@@ -68,8 +71,8 @@ static const char *dbg_device_type_name[]={"", "<unknown>", "SGS01"};
 //
 // One second timer (for longer intervals)
 //
-_attribute_data_retention_	u32	app_sec_time_tick   = 0;
-_attribute_data_retention_	u32	app_sec_time_cnt   = 0;
+_attribute_data_retention_	u32	app_sec_time_tick = 0;
+_attribute_data_retention_	u32	app_sec_time_cnt = 0;
 
 u32 app_sec_time(void)
 {
@@ -87,6 +90,9 @@ static inline void app_sec_time_update(void)
 	{
 		app_sec_time_tick+=CLOCK_16M_SYS_TIMER_CLK_1S;
 		app_sec_time_cnt++;
+		#if (APP_SECTIMER_DEBUG_EN)
+		putchar('S');
+		#endif
 	}
 }
 
@@ -148,12 +154,14 @@ static _attribute_ram_code_ _attribute_no_inline_ int app_pm_suspend_enter_cb(vo
 // App working states
 //
 
+_attribute_data_retention_ u32 app_data_time_sec = 0;
+
 static u8 app_toogle_state(u8 newstate)
 {
 	if (newstate == APP_STATE_MEASURE || (newstate == APP_STATE_NONE && app_state == APP_STATE_CONNPAIR))
 	{
 		DEBUGSTR(APP_LOG_EN, "|APP] Switch to AppState measure");
-		app_ble_setup_adv(BLE_ADV_MODE_BTHome);
+		app_ble_setup_adv(BLE_ADV_MODE_SensorData);
 		#if (APP_MCU_SERIAL)
 		app_serial_cmd_seq_start(MCU_CMD_SEQ_START_MEASURE, 60000);
 		#endif
@@ -213,6 +221,19 @@ static u8 app_handle_state()
 			}
 		}
 		return APP_PM_DISABLE_SLEEP;
+	}
+	if (app_state == APP_STATE_MEASURE)
+	{
+		#ifdef APP_MCU_DATA_TIMEOUT_SEC
+		#if (APP_MCU_SERIAL)
+		if (app_sec_time_exceeds(app_data_time_sec,APP_MCU_DATA_TIMEOUT_SEC))
+		{
+		    app_serial_cmd_seq_start(MCU_CMD_SEQ_START_MEASURE, 10); // query data
+			app_data_time_sec = app_sec_time();
+			return APP_PM_DISABLE_SLEEP;
+		}
+		#endif
+		#endif
 	}
 	#if (APP_MCU_SERIAL)
 	if (module_wakeup_status()!=0)   return APP_PM_DISABLE_SLEEP;
@@ -438,7 +459,7 @@ static void set_dp_data(const dp_def_t *dpdef, const u8 *data, u16 datalen)
 			if (dpdef[u].dptype != hdr->dptype)   continue;
             int val = get_val_be(dpdata, dplen);
             if (dpdef[u].vt_bthome < VT_USER)
-			   app_ble_set_bthome_data(dpdef[u].vt_bthome, val, dpdef[u].digits);
+			   app_ble_set_sensor_data(dpdef[u].vt_bthome, val, dpdef[u].digits);
             else if (dpdef[u].vt_bthome == VT_USER_BUTTON)
                app_handle_user_button(val);
 			break;
@@ -485,13 +506,14 @@ void app_notify(u8 evt, const u8 *data, u16 datalen)
 			#endif
 			if (app_device_type == DEVICETYPE_SGS01)
 				set_dp_data(sgs01_dp_def, data, datalen);
+			app_data_time_sec=app_sec_time();
 		    break;
 		case APP_NOTIFY_BATTERYVOLTAGE: // data: u16 (mV)
-			app_ble_set_bthome_data(VT_VOLTAGE, *(const u16 *)data, 3);
+			app_ble_set_sensor_data(VT_VOLTAGE, *(const u16 *)data, 3);
 			break;
 		case APP_NOTIFY_BATTERYLOW:
-			app_ble_set_bthome_data(VT_BATTERY_PERCENT, 0, 0); // report bat level 0%
-			app_ble_set_bthome_data(VT_BINARY_BATTERY, 1, 0); // report low bat
+			app_ble_set_sensor_data(VT_BATTERY_PERCENT, 0, 0); // report bat level 0%
+			app_ble_set_sensor_data(VT_BINARY_BATTERY, 1, 0); // report low bat
 			break;
 		case APP_NOTIFY_FACTORYRESET:
 		    DEBUGSTR(APP_LOG_EN, "|APP] Factory Reset");
@@ -509,6 +531,7 @@ void app_notify(u8 evt, const u8 *data, u16 datalen)
 			break;
 		case APP_NOTIFY_CONNSTATE:
 		{
+			if (!data)   return;
 			u8 state_new=data[0], state_old=data[1];
 		    if (app_state == APP_STATE_CONNPAIR && state_new==0 && state_old!=0)
 		    	app_toogle_state(APP_STATE_CONNPAIR); // hold conn state on disconnect

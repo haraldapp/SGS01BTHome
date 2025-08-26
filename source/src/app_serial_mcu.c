@@ -881,9 +881,6 @@ _attribute_optimize_size_ u8 app_serial_loop(void)
 	if (mcu_pad_wakeup && !mcu_uart_initialized)
 	{
 		mcu_init_serial(1);
-		//TODO: may check the result of CMDDetectHeartbeat and initialize MCU if it did reset
-		if (!next_cmd_seq)
-			app_serial_cmd_seq_start(MCU_CMD_SEQ_CHECKSTAT, 0);
 	}
 	if (!mcu_cmd_seq_active() && next_cmd_seq && clock_time_exceed(mcu_cmd_seq_start_clock,mcu_cmd_seq_start_delay))
 	{
@@ -916,7 +913,6 @@ _attribute_optimize_size_ u8 app_serial_loop(void)
 		busy_last=busy;	DEBUGFMT(APP_SERIAL_DEBUG_EN, "[MCU] Serial Stat %s", (busy?"busy":"idle"));
 	}
 	#endif
-	//TODO: may check if we get data at least xxx minutes - query data
 	return busy ? APP_PM_DISABLE_SLEEP : APP_PM_DEFAULT;
 }
 

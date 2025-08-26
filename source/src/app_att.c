@@ -36,6 +36,9 @@
 #ifndef BLE_ATT_CRYPTKEY_CHANGE_ENABLE
 #define BLE_ATT_CRYPTKEY_CHANGE_ENABLE 1
 #endif
+#ifndef BLE_ATT_CUSTOMCONFIG
+#define BLE_ATT_CUSTOMCONFIG 0
+#endif
 
 // helpers
 _attribute_optimize_size_ static u8 hex_add(char *buf, u8 val)
@@ -126,11 +129,16 @@ typedef enum
 	CustomConfig_EncryptKey_CD_H,			// prop
 	CustomConfig_EncryptKey_DP_H,			// value
 	CustomConfig_EncryptKey_DESC_H,         // desc
+	#if (BLE_ATT_CUSTOMCONFIG)
 	CustomConfig_PowerLevel_CD_H,			// prop
 	CustomConfig_PowerLevel_DP_H,			// value
 	CustomConfig_DeviceMode_CD_H,			// prop
 	CustomConfig_DeviceMode_DP_H,			// value
 	CustomConfig_DeviceMode_DESC_H,			// desc
+	CustomConfig_DataFormat_CD_H,			// prop
+	CustomConfig_DataFormat_DP_H,			// value
+	CustomConfig_DataFormat_DESC_H,			// desc
+	#endif
 	CustomConfig_BTHomeData_CD_H,			// prop
 	CustomConfig_BTHomeData_DP_H,			// value
 	CustomConfig_BTHomeData_CCB_H,			// ccc
@@ -312,7 +320,8 @@ static const u8 att_batCharVal_def[5] = {
 //   Att Pincode:      0ffb7104-860c-49ae-8989-1f946d5f6c03
 //   Att EncryptKey:   eb0fb41b-af4b-4724-a6f9-974f55aba81a
 //   Att PowerLevel:   0x2A07
-//   Att DeviceMode:   9546a87d-d32e-4573-81e1-d597c5e1da74
+//   Att DeviceMode:   9546a800-d32e-4573-81e1-d597c5e1da74
+//   Att DeviceMode:   9546a801-d32e-4573-81e1-d597c5e1da74
 //   Att BTHome data:  d52246df-98ac-4d21-be1b-70d5f66a5ddb
 //   Att FactoryReset: b0a7e40f-2b87-49db-801c-eb3686a24bdb
 #define CHARACTERISTIC_UUID_POWER_LEVEL	0x2A07
@@ -320,29 +329,39 @@ static const u8 att_batCharVal_def[5] = {
 #define CUSTOM_SERVICE_UUID 0x25,0x12,0xB5,0xCB,0xD4,0x60,0x80,0x0C,0x15,0xC3,0x9B,0xA9,0xAC,0x5A,0x8A,0xDE
 #define CUSTOM_ATT_PINCODE_UUID 0x03,0x6C,0x5F,0x6D,0x94,0x1F,0x89,0x89,0xAE,0x49,0x0C,0x86,0x04,0x71,0xFB,0x0F
 #define CUSTOM_ATT_ENCRYPTKEY_UUID 0x1A,0xA8,0xAB,0x55,0x4F,0x97,0xF9,0xA6,0x24,0x47,0x4B,0xAF,0x1B,0xB4,0x0F,0xEB
-#define CUSTOM_ATT_DEVICEMODE_UUID  0x74,0xDA,0xE1,0xC5,0x97,0xD5,0xE1,0x81,0x73,0x45,0x2E,0xD3,0x7D,0xA8,0x46,0x95
+#define CUSTOM_ATT_DEVICEMODE_UUID  0x74,0xDA,0xE1,0xC5,0x97,0xD5,0xE1,0x81,0x73,0x45,0x2E,0xD3,0x00,0xA8,0x46,0x95
+#define CUSTOM_ATT_DATAFORMAT_UUID  0x74,0xDA,0xE1,0xC5,0x97,0xD5,0xE1,0x81,0x73,0x45,0x2E,0xD3,0x01,0xA8,0x46,0x95
 #define CUSTOM_ATT_BTHOMEDATA_UUID 0xDB,0x5D,0x6A,0xF6,0xD5,0x70,0x1B,0xBE,0x21,0x4D,0xAC,0x98,0xDF,0x46,0x22,0xD5
 
 #define CUSTOM_ATT_FACTORYRESET_UUID 0xDB,0x4B,0xA2,0x86,0x36,0xEB,0x1C,0x80,0xDB,0x49,0x87,0x2B,0x0F,0xE4,0xA7,0xB0
 static const u8 att_CustomServiceUUID16[16] = WRAPPING_BRACES(CUSTOM_SERVICE_UUID);
 static const u8 att_CustomAttPincodeUUID16[16] = WRAPPING_BRACES(CUSTOM_ATT_PINCODE_UUID);
 static const u8 att_CustomAttEncryptKeyUUID16[16] = WRAPPING_BRACES(CUSTOM_ATT_ENCRYPTKEY_UUID);
+#if (BLE_ATT_CUSTOMCONFIG)
 static const u16 att_CustomAttPowerLevelUUID = CHARACTERISTIC_UUID_POWER_LEVEL;
 static const u8 att_CustomAttDeviceModeUUID16[16] = WRAPPING_BRACES(CUSTOM_ATT_DEVICEMODE_UUID);
+static const u8 att_CustomAttDataFormatUUID16[16] = WRAPPING_BRACES(CUSTOM_ATT_DATAFORMAT_UUID);
+#endif
 static const u8 att_CustomAttBTHomeDataUUID16[16] = WRAPPING_BRACES(CUSTOM_ATT_BTHOMEDATA_UUID);
 static const u8 att_CustomAttFactoryResetUUID16[16] = WRAPPING_BRACES(CUSTOM_ATT_FACTORYRESET_UUID);
 
 _attribute_data_retention_ static u8 att_customPincode_val[4] = {0,0,0,0};
 _attribute_data_retention_ static u8 att_customEncryptKey_val[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+#if (BLE_ATT_CUSTOMCONFIG)
 _attribute_data_retention_ static u8 att_customPowerLevel_val[1] = {3};
 _attribute_data_retention_ static u8 att_customDeviceMode_val[1] = {0};
+_attribute_data_retention_ static u8 att_customDataFormat_val[1] = {0};
+#endif
 _attribute_data_retention_ static u8 att_customBTHomeData_val[20];
 _attribute_data_retention_ static u8 att_customBTHomeData_ccc[2] = {0,0};
 _attribute_data_retention_ static u8 att_customFactoryReset_val[1] = {0};
 
 static const u8 att_customPincode_desc[]={'P','i','n','c','o','d','e'};
 static const u8 att_customEncryptKey_desc[]={'E','n','c','r','y','p','t','i','o','n',' ','K','e','y'};
+#if (BLE_ATT_CUSTOMCONFIG)
 static const u8 att_customDeviceMode_desc[]={'D','e','v','i','c','e',' ','M','o','d','e'};
+static const u8 att_customDataFormat_desc[]={'D','a','t','a',' ','F','o','r','m','a','t'};
+#endif
 static const u8 att_customBTHomeData_desc[]={'B','T','H','o','m','e',' ','D','a','t','a'};
 static const u8 att_customFactoryReset_desc[]={'F','a','c','t','o','r','y',' ','R','e','s','e','t'};
 
@@ -358,6 +377,7 @@ static const u8 att_customEncryptKey_def[19] = {
 	CUSTOM_ATT_ENCRYPTKEY_UUID
 };
 
+#if (BLE_ATT_CUSTOMCONFIG)
 static const u8 att_customPowerLevel_def[5] = {
 	CHAR_PROP_READ | CHAR_PROP_WRITE_WITHOUT_RSP | CHAR_PROP_WRITE,
 	U16_LO(CustomConfig_PowerLevel_DP_H), U16_HI(CustomConfig_PowerLevel_DP_H),
@@ -369,6 +389,13 @@ static const u8 att_customDeviceMode_def[19] = {
 	U16_LO(CustomConfig_DeviceMode_DP_H), U16_HI(CustomConfig_DeviceMode_DP_H),
 	CUSTOM_ATT_DEVICEMODE_UUID
 };
+
+static const u8 att_customDataFormat_def[19] = {
+	CHAR_PROP_READ | CHAR_PROP_WRITE_WITHOUT_RSP | CHAR_PROP_WRITE,
+	U16_LO(CustomConfig_DataFormat_DP_H), U16_HI(CustomConfig_DataFormat_DP_H),
+	CUSTOM_ATT_DATAFORMAT_UUID
+};
+#endif
 
 static const u8 att_customBTHomeData_def[19] = {
 	CHAR_PROP_READ | CHAR_PROP_NOTIFY,
@@ -415,6 +442,7 @@ static int customConfigWriteCB(void *p)
 		#endif
 	    return 1; // all done
 	}
+	#if (BLE_ATT_CUSTOMCONFIG)
 	if (att == CustomConfig_PowerLevel_DP_H)
 	{
 		signed char powerlevel_old=(signed char)att_customPowerLevel_val[0];
@@ -430,13 +458,28 @@ static int customConfigWriteCB(void *p)
 	if (att == CustomConfig_DeviceMode_DP_H)
 	{
 		u8 mode_old=att_customDeviceMode_val[0], mode_new=req->dat[0];
-	    DEBUGFMT(APP_ATT_LOG_EN, "[ATT] Write DeviceMode %d (%d)", mode_new, mode_old);
+	    DEBUGFMT(APP_ATT_LOG_EN, "[ATT] Write DeviceMode %u (%u)", mode_new, mode_old);
 	    userActionCB(p); // reset connection timeout
 	    if (mode_new == mode_old)   return 0;
+	    att_customDeviceMode_val[0]=mode_new;
 	    app_config_set_mode(mode_new); // update config
+//TODO check if restart is needed
 	    app_ble_device_disconnect_restart(); // restart on disconnect
 	    return 1;
 	}
+	if (att == CustomConfig_DataFormat_DP_H)
+	{
+		u8 fmt_old=att_customDataFormat_val[0], fmt_new=req->dat[0];
+	    DEBUGFMT(APP_ATT_LOG_EN, "[ATT] Write DataFormat %u (%u)", fmt_new, fmt_old);
+	    userActionCB(p); // reset connection timeout
+	    if (fmt_new == fmt_old)   return 0;
+	    att_customDataFormat_val[0]=fmt_new;
+	    app_config_set_dataformat(fmt_new); // update config
+	    app_ble_set_sensor_data_changed();
+	    app_ble_att_set_bthome_data(0, 0);
+	    return 1;
+	}
+	#endif
 	if (att == CustomConfig_FactoryReset_DP_H)
 	{
 		u8 val_new=req->dat[0];
@@ -471,10 +514,14 @@ void app_ble_att_setup_config(void)
 	{
 		u32 pin=app_config_get_pincode(); set_u32(att_customPincode_val, pin);
 	    DEBUGFMT(APP_ATT_LOG_EN, "[ATT] Setup Pincode %u", pin);
+		#if (BLE_ATT_CUSTOMCONFIG)
 		u8 level=app_config_get_power_level(); att_customPowerLevel_val[0]=level;
 	    DEBUGFMT(APP_ATT_LOG_EN, "[ATT] Setup PowerLevel %u", level);
 		u8 mode=app_config_get_mode(); att_customDeviceMode_val[0]=mode;
 	    DEBUGFMT(APP_ATT_LOG_EN, "[ATT] Setup DeviceMode %u", mode);
+		u8 datafmt=app_config_get_dataformat(); att_customDataFormat_val[0]=datafmt;
+	    DEBUGFMT(APP_ATT_LOG_EN, "[ATT] Setup DataFormat %u", datafmt);
+		#endif
 	}
 	if (security_level==Authenticated_Pairing_with_Encryption)
 	{
@@ -547,19 +594,24 @@ _attribute_data_retention_ static attribute_t att_Attributes[] =
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_batCharVal_def),(u8*)(&att_characterUUID),(u8*)(att_batCharVal_def),0,0}, // prop
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_bat_val),(u8*)(&att_batCharUUID),(u8*)(att_bat_val),0,0}, // value
 	{0,ATT_PERMISSIONS_RDWR,2,sizeof(att_bat_ccc),(u8*)(&att_clientCharacterCfgUUID),(u8*)(att_bat_ccc),0,0}, // value ccc
-    // 0x001D - 0x002F Custom Configuration Service
-	{19,ATT_PERMISSIONS_READ,2,16,(u8*)(&att_primaryServiceUUID),(u8*)(att_CustomServiceUUID16),0,0},
+    // 0x001D - 0x0032 Custom Configuration Service
+	{22,ATT_PERMISSIONS_READ,2,16,(u8*)(&att_primaryServiceUUID),(u8*)(att_CustomServiceUUID16),0,0},
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customPincode_def),(u8*)(&att_characterUUID),(u8*)(att_customPincode_def),0,0}, // prop
 	{0,ATT_PERMISSIONS_ENCRYPT_RDWR,16,sizeof(att_customPincode_val),(u8*)(att_CustomAttPincodeUUID16),(u8*)(att_customPincode_val),&customConfigWriteCB,0}, // value
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customPincode_desc),(u8*)(&att_userdesc_UUID),(u8*)(att_customPincode_desc),0,0}, // desc
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customEncryptKey_def),(u8*)(&att_characterUUID),(u8*)(att_customEncryptKey_def),0,0}, // prop
 	{0,ATT_PERMISSIONS_SECURE_CONN_RDWR,16,sizeof(att_customEncryptKey_val),(u8*)(att_CustomAttEncryptKeyUUID16),(u8*)(att_customEncryptKey_val),&customConfigWriteCB,0}, // value
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customEncryptKey_desc),(u8*)(&att_userdesc_UUID),(u8*)(att_customEncryptKey_desc),0,0}, // desc
+	#if (BLE_ATT_CUSTOMCONFIG)
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customPowerLevel_def),(u8*)(&att_characterUUID),(u8*)(att_customPowerLevel_def),0,0}, // prop
 	{0,ATT_PERMISSIONS_ENCRYPT_RDWR,2,sizeof(att_customPowerLevel_val),(u8*)(&att_CustomAttPowerLevelUUID),(u8*)(att_customPowerLevel_val),&customConfigWriteCB,0}, // value
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customDeviceMode_def),(u8*)(&att_characterUUID),(u8*)(att_customDeviceMode_def),0,0}, // prop
 	{0,ATT_PERMISSIONS_ENCRYPT_RDWR,16,sizeof(att_customDeviceMode_val),(u8*)(&att_CustomAttDeviceModeUUID16),(u8*)(att_customDeviceMode_val),&customConfigWriteCB,0}, // value
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customDeviceMode_desc),(u8*)(&att_userdesc_UUID),(u8*)(att_customDeviceMode_desc),0,0}, // desc
+	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customDataFormat_def),(u8*)(&att_characterUUID),(u8*)(att_customDataFormat_def),0,0}, // prop
+	{0,ATT_PERMISSIONS_ENCRYPT_RDWR,16,sizeof(att_customDataFormat_val),(u8*)(&att_CustomAttDataFormatUUID16),(u8*)(att_customDeviceMode_val),&customConfigWriteCB,0}, // value
+	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customDataFormat_desc),(u8*)(&att_userdesc_UUID),(u8*)(att_customDataFormat_desc),0,0}, // desc
+	#endif
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customBTHomeData_def),(u8*)(&att_characterUUID),(u8*)(att_customBTHomeData_def),0,0}, // prop
 	{0,ATT_PERMISSIONS_ENCRYPT_READ,16,sizeof(att_customBTHomeData_val),(u8*)(att_CustomAttBTHomeDataUUID16),(u8*)(att_customBTHomeData_val),0,0}, // value (initial size 0)
 	{0,ATT_PERMISSIONS_RDWR,2,sizeof(att_customBTHomeData_ccc),(u8*)(&att_clientCharacterCfgUUID),(u8*)(att_customBTHomeData_ccc),0,0}, // value ccc
@@ -567,7 +619,7 @@ _attribute_data_retention_ static attribute_t att_Attributes[] =
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customAttFactoryReset_def),(u8*)(&att_characterUUID),(u8*)(att_customAttFactoryReset_def),0,0}, // prop
 	{0,ATT_PERMISSIONS_SECURE_CONN_WRITE,16,sizeof(att_customFactoryReset_val),(u8*)(att_CustomAttFactoryResetUUID16),(u8*)(att_customFactoryReset_val),customConfigWriteCB,0}, // value
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customFactoryReset_desc),(u8*)(&att_userdesc_UUID),(u8*)(att_customFactoryReset_desc),0,0}, // desc
-	// 0x0030 - 0x0034 TELink OTA Service
+	// 0x0033 - 0x0037 TELink OTA Service
 	#if (BLE_OTA_SERVER_ENABLE)
 	{5,ATT_PERMISSIONS_READ,2,16,(u8*)(&att_primaryServiceUUID),(u8*)(att_otaServiceUUID16),0,0},
 	{0,ATT_PERMISSIONS_READ,2, sizeof(att_otaData_def),(u8*)(&att_characterUUID),(u8*)(att_otaData_def),0,0}, // prop
@@ -582,8 +634,8 @@ void app_ble_att_init(void)
 {
 	app_ble_att_setup_serial();
 	app_ble_att_setup_config();
-	bls_att_setAttributeTable((u8 *)att_Attributes);
 	att_Attributes[CustomConfig_BTHomeData_DP_H].attrLen = 0; // variable length data
+	bls_att_setAttributeTable((u8 *)att_Attributes);
 }
 
 void app_ble_att_set_battery_data(u8 val)
@@ -595,13 +647,20 @@ void app_ble_att_set_battery_data(u8 val)
 
 void app_ble_att_set_bthome_data(const u8 *data, u8 len)
 {
-	if (!data || len > sizeof(att_customBTHomeData_val))   return;
+	if (len > sizeof(att_customBTHomeData_val))   return;
+	att_Attributes[CustomConfig_BTHomeData_DP_H].attrLen = len;
+	if (!data || len==0)   return;
 	memset(att_customBTHomeData_val, 0xFF, sizeof(att_customBTHomeData_val));
 	memcpy(att_customBTHomeData_val, data, len);
-	att_Attributes[CustomConfig_BTHomeData_DP_H].attrLen = len;
 	if (val_in_ccc(att_customBTHomeData_ccc))
 		bls_att_pushNotifyData(CustomConfig_BTHomeData_DP_H, att_customBTHomeData_val, len);
 }
+
+void app_ble_att_set_xiaomi_data(const u8 *data, u8 len)
+{
+	att_Attributes[CustomConfig_BTHomeData_DP_H].attrLen = 0;
+}
+
 
 #endif // #if (APP_BLE_ATT)  // component enabled
 

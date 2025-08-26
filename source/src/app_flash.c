@@ -172,8 +172,8 @@ typedef struct _attribute_packed_ _appconfig_v1_t {
 	u32 pincode;
 	u8  powerlevel; // dbm + 30
 	u8  mode;
+	u8  dataformat;
 	u8  reserved2;
-	u8  reserved3;
 } appconfig_v1_t;
 
 #define appconfig_t appconfig_v1_t
@@ -271,6 +271,7 @@ void app_config_init(void)
     if (key)   DEBUGHEXBUF(APP_FLASH_LOG_EN, "[FLS] Cfg: key %s", key, 16);
     DEBUGFMT(APP_FLASH_LOG_EN, "[FLS] Cfg: powerlevel %u (0x%02X)", app_config_get_power_level(), app_config.powerlevel);
     DEBUGFMT(APP_FLASH_LOG_EN, "[FLS] Cfg: mode %u (0x%02X)", app_config_get_mode(), app_config.mode);
+    DEBUGFMT(APP_FLASH_LOG_EN, "[FLS] Cfg: format %u (0x%02X)", app_config_get_dataformat(), app_config.dataformat);
 	#endif
 }
 
@@ -382,6 +383,17 @@ void app_config_set_mode(u8 mode)
 {
 	if (mode >= DEVMODE_LAST)   mode=DEVMODE_LAST-1;
 	config_set_val((u8*)&app_config.mode, (u8*)&mode, 1);
+}
+
+u8 app_config_get_dataformat(void)
+{
+	if (app_config.dataformat == APP_CFG_DEFAULT_U8 )   return DATAFORMAT_DEFAULT;
+	return app_config.dataformat;
+}
+
+void app_config_set_dataformat(u8 datafmt)
+{
+	config_set_val((u8*)&app_config.dataformat, (u8*)&datafmt, 1);
 }
 
 

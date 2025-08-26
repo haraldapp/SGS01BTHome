@@ -29,9 +29,10 @@
 #define VERSION_STR_BUILD ""
 #endif
 
-#define BTHOME_ADV_INTERVAL 		(ADV_INTERVAL_1S * 8)  // 8 sec, ADV mode noconn (max. 8s)
-#define BTHOME_CONN_ADV_INTERVAL 	(ADV_INTERVAL_1S * 3)  // 3 sec, ADV mode direct
-#define BLE_CONNECTION_TIMEOUT_SEC  (4*60) // 4 min
+#define SENSORDATA_ADV_INTERVAL 		(ADV_INTERVAL_1S * 8)  // 8 sec, ADV mode noconn (max. 8s)
+#define SENSORDATA_CONN_ADV_INTERVAL	(ADV_INTERVAL_1S * 3)  // 3 sec, ADV mode direct
+#define BLE_CONNECTION_TIMEOUT_SEC		(4*60) // 4 min
+#define APP_MCU_DATA_TIMEOUT_SEC        (3*60) // 3 min (poll data from MCU, if not got a data notify)
 
 // App modules
 #define APP_BATTERY_CHECK	1   // Battery measure and check
@@ -43,6 +44,7 @@
 #define PM_DEEPSLEEP_RETENTION_ENABLE	1
 #define BLE_APP_SECURITY_ENABLE      	1 // ACL Slave device SMP, strongly recommended enabled
 #define BLE_OTA_SERVER_ENABLE			1
+#define BLE_ATT_CUSTOMCONFIG            1 // BLE ATT "PowerLevel" "DeviceMode" "DataFormat"
 #define BLE_ATT_CRYPTKEY_CHANGE_ENABLE	1 // Allow to change BTHome encryption key
 
 // RF Power Level
@@ -82,6 +84,7 @@
 #define APP_SERIAL_DEBUG_EN					1
 #define APP_BTHOME_LOG_EN					1
 #define APP_DPDATA_LOG_EN					0
+#define APP_SECTIMER_DEBUG_EN				1
 #endif
 
 // DEBUG Setup
@@ -95,7 +98,7 @@
 #define ADC_INPUT_PCHN 					B4P		 // corresponding ADC_InputPchTypeDef
 #define APP_BATTERY_LOW_MV				2600 // low battery voltage mV
 #define APP_BATTERY_CRITICAL_MV			2200 // critical battery voltage mV
-#define APP_BATTERY_CHECK_INTERVAL_SEC  120  // 2 minutes
+#define APP_BATTERY_CHECK_INTERVAL_SEC  300  // 5 minutes
 #define APP_BATTERY_FAIL_DELAY_SEC		30   // battery critical - delayed stop
 
 // UART Serial

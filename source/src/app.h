@@ -125,6 +125,9 @@ void app_config_set_power_level(signed char level_dbm);
 enum {DEVMODE_DEFAULT=0, DEVMODE_MEASURE_NOCONN=0, DEVMODE_MEASURE_CONN, DEVMODE_LAST};
 void app_config_set_mode(u8 mode);
 u8 app_config_get_mode(void);
+enum {DATAFORMAT_DEFAULT=0, DATAFORMAT_BTHOME_V1=1, DATAFORMAT_BTHOME_V2=2, DATAFORMAT_XIAOMI=4};
+void app_config_set_dataformat(u8 mode);
+u8 app_config_get_dataformat(void);
 
 // app_battery.c
 #if (APP_BATTERY_CHECK)
@@ -148,9 +151,10 @@ u8 app_ble_device_bond(void);
 void app_ble_delete_bond(void);
 enum { APP_BLE_CMD_NONE=0, APP_BLE_CMD_DELETEBOND=0x01 };
 void app_ble_async_command(u8 cmd);
-enum {BLE_ADV_MODE_None=0, BLE_ADV_MODE_Conn, BLE_ADV_MODE_BTHome };
+enum {BLE_ADV_MODE_None=0, BLE_ADV_MODE_Conn, BLE_ADV_MODE_SensorData };
 void app_ble_setup_adv(u8 adv_mode);
-int app_ble_set_bthome_data(u8 vt, int val, char digits);
+int app_ble_set_sensor_data(u8 vt, int val, char digits);
+void app_ble_set_sensor_data_changed(void);
 void app_ble_set_powerlevel(signed char level_dbm);
 
 // app_att.c
@@ -161,6 +165,7 @@ void app_ble_att_init(void);
 u8 app_ble_att_get_factoryreset(u8 newval);
 void app_ble_att_set_battery_data(u8 level);
 void app_ble_att_set_bthome_data(const u8 *data, u8 len);
+void app_ble_att_set_xiaomi_data(const u8 *data, u8 len);
 #endif
 
 // app_serial_mcu.c
