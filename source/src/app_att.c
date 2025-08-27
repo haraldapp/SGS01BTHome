@@ -609,7 +609,7 @@ _attribute_data_retention_ static attribute_t att_Attributes[] =
 	{0,ATT_PERMISSIONS_ENCRYPT_RDWR,16,sizeof(att_customDeviceMode_val),(u8*)(&att_CustomAttDeviceModeUUID16),(u8*)(att_customDeviceMode_val),&customConfigWriteCB,0}, // value
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customDeviceMode_desc),(u8*)(&att_userdesc_UUID),(u8*)(att_customDeviceMode_desc),0,0}, // desc
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customDataFormat_def),(u8*)(&att_characterUUID),(u8*)(att_customDataFormat_def),0,0}, // prop
-	{0,ATT_PERMISSIONS_ENCRYPT_RDWR,16,sizeof(att_customDataFormat_val),(u8*)(&att_CustomAttDataFormatUUID16),(u8*)(att_customDeviceMode_val),&customConfigWriteCB,0}, // value
+	{0,ATT_PERMISSIONS_ENCRYPT_RDWR,16,sizeof(att_customDataFormat_val),(u8*)(&att_CustomAttDataFormatUUID16),(u8*)(att_customDataFormat_val),&customConfigWriteCB,0}, // value
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customDataFormat_desc),(u8*)(&att_userdesc_UUID),(u8*)(att_customDataFormat_desc),0,0}, // desc
 	#endif
 	{0,ATT_PERMISSIONS_READ,2,sizeof(att_customBTHomeData_def),(u8*)(&att_characterUUID),(u8*)(att_customBTHomeData_def),0,0}, // prop
