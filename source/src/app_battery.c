@@ -53,6 +53,7 @@
 
 _attribute_data_retention_	u32	app_battery_check_time_sec = 0;
 _attribute_data_retention_	u32	app_battery_fail_delay_sec = 0;
+_attribute_data_retention_	u8	app_battery_check_next = 0;
 
 static inline u16 app_battery_voltage()
 {
@@ -99,7 +100,7 @@ u8 app_battery_loop(void)
 		cpu_sleep_wakeup(DEEPSLEEP_MODE, PM_WAKEUP_PAD, 0);  // deep sleep
 	}
 	// periodic battery check
-	if (!low_bat_state && app_sec_time_exceeds(app_battery_check_time_sec,APP_BATTERY_CHECK_INTERVAL_SEC))
+	if (!low_bat_state && (app_battery_check_next || app_sec_time_exceeds(app_battery_check_time_sec,APP_BATTERY_CHECK_INTERVAL_SEC)))
 	{
 		int bat_ok=app_battery_check(APP_BATTERY_CRITICAL_MV);
 		volatile u16 bat_v=app_battery_voltage();
@@ -112,10 +113,12 @@ u8 app_battery_loop(void)
 		{
 			DEBUGFMT(APP_BATTERY_CHECK_LOG_EN, "[BAT] The battery voltage is lower than %dmV - delayed shut down", APP_BATTERY_CRITICAL_MV);
 			app_flash_set_persist_state(APP_STATE_LOWBAT, APP_STATE_LOWBAT);
-			app_notify(APP_NOTIFY_BATTERYLOW, 0, 0 );
 			app_battery_fail_delay_sec=app_sec_time(); // start timer for delayed stop
 		}
+		app_battery_check_next = 0;
 		app_notify(APP_NOTIFY_BATTERYVOLTAGE, (u8*)&bat_v, 2 );
+		if (bat_v < APP_BATTERY_LOW_MV)
+			app_notify(APP_NOTIFY_BATTERYLOW, 0, 0 );
 	}
 	return APP_PM_DEFAULT;
 }
@@ -124,6 +127,12 @@ int app_battery_check(u16 alarm_voltage_mv)
 {
 	return app_battery_power_check(alarm_voltage_mv); // battery_check.c
 }
+
+void app_battery_check_delayed(void)
+{
+	app_battery_check_next = 1; // run check in next loop
+}
+
 
 #endif // #if (APP_BATTERY_CHECK)
 

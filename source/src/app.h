@@ -135,6 +135,7 @@ void app_battery_init_normal(void);
 _attribute_ram_code_ void app_battery_init_deepRetn(void);
 u8 app_battery_loop(void);
 int app_battery_check(u16 alarm_voltage_mv);
+void app_battery_check_delayed(void);
 #endif
 
 // app_ble.c

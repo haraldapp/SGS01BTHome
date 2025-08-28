@@ -60,7 +60,7 @@
 
 // Watchdog
 #define MODULE_WATCHDOG_ENABLE		0
-#define WATCHDOG_INIT_TIMEOUT		500  //ms
+#define WATCHDOG_INIT_TIMEOUT		500  // ms
 
 // DEBUG  Configuration
 #ifndef APP_DEBUG_ENABLE
@@ -68,7 +68,7 @@
 #endif
 #if (APP_DEBUG_ENABLE)
 #define APP_LOG_EN							1
-#define APP_PM_LOG_EN						1  // power management
+#define APP_PM_LOG_EN						0  // power management
 #define APP_BLE_LOG_EN						1  // BLE
 #define APP_FLASH_LOG_EN					1
 #define APP_FLASH_DEBUG_EN					1

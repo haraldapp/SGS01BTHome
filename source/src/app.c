@@ -57,10 +57,12 @@ _attribute_data_retention_	my_fifo_t	blt_txfifo = {TX_FIFO_SIZE, TX_FIFO_NUM, 0,
 enum { PM_MODE_NONE=0, PM_MODE_ALIVE, PM_MODE_SLEEP, PM_MODE_DEEPSLEEP };
 static _attribute_data_retention_ u8 app_pm_mode = PM_MODE_NONE;
 
-enum { APP_STATE_NONE, APP_STATE_INIT, APP_STATE_CONNPAIR, APP_STATE_MEASURE };
+enum { APP_STATE_NONE=0, APP_STATE_INIT, APP_STATE_CONNPAIR, APP_STATE_MEASURE, APP_STATE_TOOGLE=99 };
 #define APP_STATE_PAIR_TIMEOUT 59 // 59 sec
 static _attribute_data_retention_ u8 app_state = APP_STATE_NONE;
 static u32 app_state_clock = 0;
+#define APP_MCU_STATE_REFRESH_SEC 50
+static u32 app_mcustate_time = 0;
 
 enum { DEVICETYPE_None=0, DEVICETYPE_Unknown, DEVICETYPE_SGS01 };
 static _attribute_data_retention_ u8 app_device_type = DEVICETYPE_None;
@@ -156,36 +158,42 @@ static _attribute_ram_code_ _attribute_no_inline_ int app_pm_suspend_enter_cb(vo
 
 _attribute_data_retention_ u32 app_data_time_sec = 0;
 
-static u8 app_toogle_state(u8 newstate)
+static u8 app_set_state(u8 newstate)
 {
+	if (newstate == APP_STATE_TOOGLE)
+	{
+		if (app_state == APP_STATE_CONNPAIR)		newstate = APP_STATE_MEASURE;
+		else if (app_state == APP_STATE_MEASURE)	newstate = APP_STATE_CONNPAIR;
+	}
 	if (newstate == APP_STATE_MEASURE || (newstate == APP_STATE_NONE && app_state == APP_STATE_CONNPAIR))
 	{
 		DEBUGSTR(APP_LOG_EN, "|APP] Switch to AppState measure");
 		app_ble_setup_adv(BLE_ADV_MODE_SensorData);
 		#if (APP_MCU_SERIAL)
 		app_serial_cmd_seq_start(MCU_CMD_SEQ_START_MEASURE, 60000);
+		app_mcustate_time = app_sec_time();
 		#endif
-		app_state=APP_STATE_MEASURE;
+		app_state=APP_STATE_MEASURE; app_state_clock = app_sec_time();
 		return 1;
 	}
-	if (newstate == APP_STATE_CONNPAIR || (newstate == APP_STATE_NONE && app_state == APP_STATE_MEASURE))
+	if (newstate == APP_STATE_CONNPAIR && app_state != APP_STATE_CONNPAIR)
 	{
-		if (app_state != APP_STATE_CONNPAIR)
-		{
-			DEBUGSTR(APP_LOG_EN, "|APP] Switch to AppState conn/pair");
-			app_ble_setup_adv(BLE_ADV_MODE_Conn);
-			#if (APP_MCU_SERIAL)
-			app_serial_cmd_seq_start(MCU_CMD_SEQ_START_CONNECT, 60000);
-			#endif
-		}
-		else
-		{
-			DEBUGSTR(APP_LOG_EN, "|APP] Update AppState connect/pair");
-			#if (APP_MCU_SERIAL)
-			app_serial_cmd_seq_start(MCU_CMD_SEQ_UPDATE_CONNECT, 60000);
-			#endif
-		}
+		DEBUGSTR(APP_LOG_EN, "|APP] Switch to AppState conn/pair");
+		app_ble_setup_adv(BLE_ADV_MODE_Conn);
+		#if (APP_MCU_SERIAL)
+		app_serial_cmd_seq_start(MCU_CMD_SEQ_START_CONNECT, 60000);
+		app_mcustate_time = app_sec_time();
+		#endif
 		app_state = APP_STATE_CONNPAIR; app_state_clock = app_sec_time();
+		return 1;
+	}
+	if (newstate == APP_STATE_CONNPAIR && app_state == APP_STATE_CONNPAIR)
+	{
+		DEBUGFMT(APP_LOG_EN, "|APP] Update AppState connect/pair (%u sec)", app_sec_time());
+		#if (APP_MCU_SERIAL)
+		app_serial_cmd_seq_start(MCU_CMD_SEQ_UPDATE_CONNECT, 60000);
+		app_mcustate_time = app_sec_time();
+		#endif
 		return 1;
 	}
 	return 0;
@@ -201,25 +209,27 @@ static u8 app_handle_state()
 	{
 		u8 bond=app_ble_device_bond();
 		if (bond)
-			app_toogle_state(APP_STATE_MEASURE); // go direct to measure mode
+			app_set_state(APP_STATE_MEASURE); // go direct to measure mode
 		else
-			app_toogle_state(APP_STATE_CONNPAIR);
+			app_set_state(APP_STATE_CONNPAIR);
 		return APP_PM_DISABLE_SLEEP;
 	}
 	if (app_state == APP_STATE_CONNPAIR)
 	{
-		if (app_sec_time_exceeds(app_state_clock,APP_STATE_PAIR_TIMEOUT))
+		bool timeout = app_sec_time_exceeds(app_state_clock, APP_STATE_PAIR_TIMEOUT);
+		u8 connected = app_ble_device_connected();
+		if (timeout && !connected)
 		{
-			if (app_ble_device_connected())
-			{
-				app_toogle_state(APP_STATE_CONNPAIR); // send state to mcu (keep LED blinking)
-			}
-			else
-			{
-				DEBUGSTR(APP_LOG_EN, "|APP] Conn/Pairing timeout");
-				app_toogle_state(APP_STATE_MEASURE);
-			}
+			DEBUGSTR(APP_LOG_EN, "[APP] Conn/Pairing timeout");
+			app_set_state(APP_STATE_MEASURE);
 		}
+		#if (APP_MCU_SERIAL)
+		bool mcurefresh=app_sec_time_exceeds(app_mcustate_time, APP_MCU_STATE_REFRESH_SEC);
+		if (mcurefresh && !module_wakeup_status() && !app_serial_cmd_seq_stat())
+		{
+			app_set_state(APP_STATE_CONNPAIR); // refresh mcu state (keep LED blinking)
+		}
+		#endif
 		return APP_PM_DISABLE_SLEEP;
 	}
 	if (app_state == APP_STATE_MEASURE)
@@ -457,11 +467,14 @@ static void set_dp_data(const dp_def_t *dpdef, const u8 *data, u16 datalen)
 		{   // find DP to BTHome data mapping
 			if (dpdef[u].dpid != hdr->dpid)   continue;
 			if (dpdef[u].dptype != hdr->dptype)   continue;
-            int val = get_val_be(dpdata, dplen);
-            if (dpdef[u].vt_bthome < VT_USER)
-			   app_ble_set_sensor_data(dpdef[u].vt_bthome, val, dpdef[u].digits);
-            else if (dpdef[u].vt_bthome == VT_USER_BUTTON)
+			u8 vtype = dpdef[u].vt_bthome;
+            int ret = 0, val = get_val_be(dpdata, dplen);
+            if (vtype < VT_USER)
+			   ret = app_ble_set_sensor_data(dpdef[u].vt_bthome, val, dpdef[u].digits);
+            else if (vtype == VT_USER_BUTTON)
                app_handle_user_button(val);
+            if (vtype == VT_BATTERY_PERCENT && ret > 0)
+            	app_battery_check_delayed(); // BatteryLevel changed: measure battery voltage
 			break;
 		}
 	}
@@ -534,11 +547,11 @@ void app_notify(u8 evt, const u8 *data, u16 datalen)
 			if (!data)   return;
 			u8 state_new=data[0], state_old=data[1];
 		    if (app_state == APP_STATE_CONNPAIR && state_new==0 && state_old!=0)
-		    	app_toogle_state(APP_STATE_CONNPAIR); // hold conn state on disconnect
+		    	app_state_clock = app_sec_time(); // hold conn state on disconnect
 		} break;
 		case APP_NOTIFY_BUTTONPRESS:
 		    DEBUGSTR(APP_LOG_EN, "|APP] Button press");
-		    app_toogle_state(0);
+		    app_set_state(APP_STATE_TOOGLE);
 			break;
 	}
 }

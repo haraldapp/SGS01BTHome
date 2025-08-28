@@ -1,15 +1,16 @@
 # SGS01 BTHome  ![](wiki/cloudfree-64x32.jpg)
-Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome format.   
+Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome format.
 
+Project status:	23.08.2025 started alpha test with 4 devices
 
 
 ## Sensor
 
  ![](wiki/sgs01.jpg)
 
- Model: SGS01 / HZ-SL05 / "Connected Home PLANT MONITOR" / PID gvygg3m8   
- Manufacturer: Shenzhen HaiHao Electronic Co.LTD    
- Firmware: Tuya Cloud Protocol   
+ Model: SGS01 / HZ-SL05 / "Connected Home PLANT MONITOR" / PID gvygg3m8
+ Manufacturer: Shenzhen HaiHao Electronic Co.LTD
+ Firmware: Tuya Cloud Protocol
 
 
 ##  Custom Firmware Features
@@ -29,30 +30,30 @@ Custom firmware for the Tuya SGS01 soil sensor to send data in standard BTHome f
 - The BT3L module communicates with the MCU over UART serial, TUYA third party MCU protocol
 - The custom firmware replaces the BT3L module firmware, handles the MCU serial protocol and send the sensor data in BTHome format
 
-## Flashing the custom firmware   
+## Flashing the custom firmware
 
 - Unmount the 4 screws in the battery case and remove the back cover.
-   
-   ![](wiki/sgs01-back.jpg)  
-   
+
+   ![](wiki/sgs01-back.jpg)
+
    ![](wiki/bt3l.jpg)
-   
-- TELINK BDT    
-  [BDT Tool](https://wiki.telink-semi.cn/wiki/IDE-and-Tools/Burning-and-Debugging-Tools-for-all-Series/ ""): Flashing by TELink Buring and debugging tool.   
-  Connect:    
->   *Sensor Vcc - BDT 3V3*   
-    *Sensor Gnd - BDT GND*   
-    *Sensor SWS - BDT SWM*   
-  
-  Select chip type 8258 to flash.  
-- PVVX   
+
+- TELINK BDT
+  [BDT Tool](https://wiki.telink-semi.cn/wiki/IDE-and-Tools/Burning-and-Debugging-Tools-for-all-Series/ ""): Flashing by TELink Buring and debugging tool.
+  Connect:
+>   *Sensor Vcc - BDT 3V3*
+    *Sensor Gnd - BDT GND*
+    *Sensor SWS - BDT SWM*
+
+  Select chip type 8258 to flash.
+- PVVX
   [TlsrComSwireWriter](https://github.com/pvvx/TlsrComSwireWriter ""):
-  Flashing by "USB/TTL adapter" and PVVX python script.   
-  Connect:   
->    *Sensor Vcc - TTL 3V3 (ensure 3.3V power)*   
-    *Sensor Gnd - TTL Gnd*   
-    *Sensor SWS - TTL RxTx*   
-    *Sensor Reset - TTL Rts*   
+  Flashing by "USB/TTL adapter" and PVVX python script.
+  Connect:
+>    *Sensor Vcc - TTL 3V3 (ensure 3.3V power)*
+    *Sensor Gnd - TTL Gnd*
+    *Sensor SWS - TTL RxTx*
+    *Sensor Reset - TTL Rts*
 
 - Note: If the sensor firmware was updated by OTA, erase flash sectors 0x00000 - 0x3FFFF. DO NOT erase flash sectors above 0x70000, here is the manufactor pre-programmed area (MAC address and chip calibration data).    
 - May read out the original firmware (first 128k) before flashing.
