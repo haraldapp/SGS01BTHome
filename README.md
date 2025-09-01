@@ -32,6 +32,8 @@ Project status:	23.08.2025 started alpha test with 4 devices
 
 ## Flashing the custom firmware
 
+Note: When flashing the custom BTHome firmware, the sensor won't work with the Tuya cloud.
+
 - Unmount the 4 screws in the battery case and remove the back cover.
 
    ![](wiki/sgs01-back.jpg)
@@ -64,6 +66,10 @@ Project status:	23.08.2025 started alpha test with 4 devices
 
 - No time? Just flash the module and insert batteries. The sensor will start up in connection mode (LED flashing) and changes after 60 seconds to measure mode - advertising BTHome data.   
 - For configuration and encryption have a look at the manual. [```PDF```](wiki/SGS01-BTHome-Manual.pdf)    
+
+## TODO's    
+
+- Check long time battery usage
 
 ## Links    
 
